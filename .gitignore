@@ -1,0 +1,20 @@
+# Environment variables (API keys)
+.env
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+legal_env/
+
+# Generated data (large files)
+data_chunks/
+chunks/
+extracted_md/
+Trainingdata/
+
+# Logs
+rejected_chunks.log
+rejected_scenarios.jsonl
+detailed_log.jsonl
