@@ -1,7 +1,7 @@
 from openai import OpenAI
 import sys
 
-API_KEY = "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"
+API_KEY = "your api key"
 BASE_URL = "https://integrate.api.nvidia.com/v1"
 MODEL = "meta/llama-3.3-70b-instruct"
 
