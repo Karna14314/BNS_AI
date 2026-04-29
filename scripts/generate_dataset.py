@@ -138,6 +138,21 @@ FORBIDDEN_REFS = [
     "insufficient_content",
 ]
 
+HANDBOOK_PHRASES = [
+    "handbook",
+    "colour coding",
+    "color coding", 
+    "green highlight",
+    "blue highlight",
+    "red highlight",
+    "BPR&D",
+    "Bureau of Police Research",
+    "handbook's guidance",
+    "training material",
+    "as highlighted in",
+    "colour-coded",
+]
+
 
 def validate_scenario(scenario: dict) -> tuple:
     """Validate a single LLM-generated scenario before saving.
@@ -755,6 +770,52 @@ def show_stats():
     print(f"\n{'='*60}\n")
 
 
+def clean_dataset():
+    """Post-processing filter to clean handbook-meta samples from training_data.jsonl"""
+    if not os.path.exists(OUTPUT_FILE):
+        print(f"\n  [ERROR] Source file {OUTPUT_FILE} not found!")
+        return
+
+    clean_file = "training_data_clean.jsonl"
+    removed_count = 0
+    kept_count = 0
+
+    with open(OUTPUT_FILE, "r", encoding="utf-8") as infile, \
+         open(clean_file, "w", encoding="utf-8") as outfile:
+        
+        for line in infile:
+            line = line.strip()
+            if not line:
+                continue
+            
+            try:
+                scenario = json.loads(line)
+                combined_text = scenario.get("instruction", "") + " " + scenario.get("output", "")
+                
+                has_handbook_phrase = False
+                for phrase in HANDBOOK_PHRASES:
+                    if phrase.lower() in combined_text.lower():
+                        has_handbook_phrase = True
+                        break
+                
+                if has_handbook_phrase:
+                    removed_count += 1
+                else:
+                    outfile.write(json.dumps(scenario, ensure_ascii=False) + "\n")
+                    kept_count += 1
+                    
+            except json.JSONDecodeError:
+                continue
+
+    print(f"\n{'='*60}")
+    print(f"  DATASET CLEANUP REPORT")
+    print(f"{'='*60}")
+    print(f"  Removed {removed_count} handbook-meta samples.")
+    print(f"  Clean dataset: {kept_count} samples remaining.")
+    print(f"  Saved to: {clean_file}")
+    print(f"{'='*60}\n")
+
+
 def run_test_10():
     """Diagnostic test: Select 10 diverse chunks and run through LLM without saving."""
     if not API_KEY:
@@ -905,10 +966,18 @@ def main():
         "--test-10", action="store_true",
         help="Diagnostic: select 10 diverse chunks and run through LLM to verify quality."
     )
+    parser.add_argument(
+        "--clean", action="store_true",
+        help="Post-processing: clean handbook-meta samples from training_data.jsonl."
+    )
     args = parser.parse_args()
 
     if args.stats:
         show_stats()
+        return
+
+    if args.clean:
+        clean_dataset()
         return
 
     print(f"\n{'='*60}")

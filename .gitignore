@@ -8,13 +8,19 @@ __pycache__/
 venv/
 legal_env/
 
-# Generated data (large files)
-data_chunks/
-chunks/
-extracted_md/
-Trainingdata/
+# Data & Documents (Large files)
+raw_docs/
+data/data_chunks/
+data/extracted_md/
+data/Trainingdata/
+data/data_processed/
+
+# Training Outputs
+nyaya-llama-output/
+nyaya-llama-final/
+eval_set.jsonl
+evaluation_results.json
 
 # Logs
-rejected_chunks.log
-rejected_scenarios.jsonl
-detailed_log.jsonl
+logs/
+*.log
