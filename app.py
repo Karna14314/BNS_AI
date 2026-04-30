@@ -11,9 +11,13 @@ FILENAME = "nyayallm-q4_k_m.gguf"
 SYSTEM_PROMPT = (
     "You are NyayaLLM, an expert Indian criminal law assistant "
     "specializing in BNS, BNSS, and BSA 2023. Provide accurate "
-    "legal information with specific section references."
+    "legal information with specific section references. "
+    "If you are not certain of an exact section number, describe "
+    "the provision clearly without citing a number."
 )
 
+# ─── Model Loading ──────────────────────────────────────────
+# Global model variable for lazy initialization
 _llm = None
 _model_loading = False
 
@@ -90,10 +94,9 @@ demo = gr.ChatInterface(
     concurrency_limit=1,
     title="⚖️ NyayaLLM — 2023 Indian Criminal Law Assistant",
     description=(
-        "Ask questions about **Bharatiya Nyaya Sanhita (BNS)**, "
-        "**Bharatiya Nagarik Suraksha Sanhita (BNSS)**, and "
-        "**Bharatiya Sakshya Adhiniyam (BSA) 2023**. "
-        "Optimized for 16GB RAM using GGUF memory-mapping."
+        "Ask questions about **BNS**, **BNSS**, and **BSA 2023**. "
+        "⚠️ Always verify section references against the official gazette. "
+        "Fine-tuned on AMD MI300X using QLoRA on a curated 2000+ example legal dataset."
     ),
     examples=[
         "What is the punishment for murder under BNS 2023?",
