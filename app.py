@@ -14,29 +14,28 @@ SYSTEM_PROMPT = (
     "legal information with specific section references."
 )
 
-# Global model variable for lazy initialization
 _llm = None
-_lock = threading.Lock()
+_model_loading = False
 
 def get_llm():
     """Lazy initialization of the Llama model with memory optimization."""
-    global _llm
+    global _llm, _model_loading
     if _llm is None:
-        with _lock:
-            if _llm is None:
-                print(f"Downloading model from {REPO_ID}...")
-                model_path = hf_hub_download(repo_id=REPO_ID, filename=FILENAME)
-                print("Initializing Llama model (Optimized for 16GB RAM)...")
-                _llm = Llama(
-                    model_path=model_path,
-                    n_ctx=2048,
-                    n_threads=4,      # Fixed threads for stability on Spaces
-                    n_gpu_layers=0,    # Force CPU
-                    n_batch=128,       # Reduced batch size for lower memory peak
-                    use_mmap=True,     # Memory mapping for disk-based paging
-                    use_mlock=False,   # Do not pin pages to RAM
-                    verbose=False,
-                )
+        _model_loading = True
+        print(f"Downloading model from {REPO_ID}...")
+        model_path = hf_hub_download(repo_id=REPO_ID, filename=FILENAME)
+        print("Initializing Llama model (Optimized for 16GB RAM)...")
+        _llm = Llama(
+            model_path=model_path,
+            n_ctx=2048,
+            n_threads=4,      # Fixed threads for stability on Spaces
+            n_gpu_layers=0,    # Force CPU
+            n_batch=128,       # Reduced batch size for lower memory peak
+            use_mmap=True,     # Memory mapping for disk-based paging
+            use_mlock=False,   # Do not pin pages to RAM
+            verbose=False,
+        )
+        _model_loading = False
     return _llm
 
 # ─── Inference ───────────────────────────────────────────────
@@ -73,6 +72,7 @@ def respond(message: str, history: list):
 # ─── Gradio UI ───────────────────────────────────────────────
 demo = gr.ChatInterface(
     fn=respond,
+    concurrency_limit=1,
     title="⚖️ NyayaLLM — 2023 Indian Criminal Law Assistant",
     description=(
         "Ask questions about **Bharatiya Nyaya Sanhita (BNS)**, "
