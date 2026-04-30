@@ -1,3 +1,4 @@
+export PATH=$PATH:/opt/rocm/bin
 #!/bin/bash
 set -e  # Exit on any error
 
@@ -68,7 +69,7 @@ echo "=== Step 8: HuggingFace login ==="
 echo "You need a HuggingFace token with Llama 3.1 access"
 echo "Get token from: https://huggingface.co/settings/tokens"
 echo "Request model access: https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct"
-huggingface-cli login
+hf auth login
 
 echo "=== Setup Complete ==="
 echo "Now run: python smoke_test.py"

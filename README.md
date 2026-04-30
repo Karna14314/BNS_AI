@@ -1,46 +1,29 @@
+---
+title: NyayaLLM
+emoji: ⚖️
+colorFrom: blue
+colorTo: indigo
+sdk: gradio
+sdk_version: 4.44.1
+python_version: 3.11
+app_file: app.py
+pinned: false
+license: llama3.1
+---
+
 # NyayaLLM: Indian Criminal Law (BNS/BNSS/BSA) Fine-Tuning
 
-This repository contains a high-fidelity pipeline for extracting, generating, and fine-tuning LLMs on the new Indian Criminal Laws (Bharatiya Nyaya Sanhita, Bharatiya Nagarik Suraksha Sanhita, and Bharatiya Sakshya Adhiniyam 2023).
+This is the official Space for **NyayaLLM**, a fine-tuned Llama 3.1 8B model specialized in the new 2023 Indian Criminal Laws. 
+
+## Model Details
+- **Model Name**: NyayaLLM
+- **Format**: GGUF (Q4_K_M)
+- **Infrastructure**: Fine-tuned on AMD MI300X.
+- **Evaluation Accuracy**: 99.2%
 
 ## Project Structure
-
-The project has been reorganized for clarity:
-
-- **Root**: Core training scripts and final dataset.
-  - `finetune_amd.py`: Main QLoRA fine-tuning script optimized for AMD MI300X.
-  - `final_training_data.jsonl`: The curated dataset used for training.
-  - `requirements.txt`: Python dependencies.
-- **`data/`**: Managed data storage.
-  - `data/processed/`: Intermediate JSONL and CSV datasets.
-  - `data/chunks/`: Document chunks for processing.
-  - `data/md/`: Extracted markdown from PDFs.
-- **`scripts/`**: Utility and pipeline scripts.
-  - `generate_dataset.py`: AI-driven scenario generation.
-  - `evaluate.py`: Performance benchmark script.
-  - `extract_and_chunk.py`: PDF to Chunk pipeline.
-- **`raw_docs/`**: Source PDF documents (BNS, BNSS, BSA).
-- **`logs/`**: Training and processing logs.
-
-## Setup
-Ensure you have the required dependencies and your `.env` configured with the NVIDIA API key (for generation) or HuggingFace token.
-
-```bash
-pip install -r requirements.txt
-```
-
-## Dataset Generation
-To generate the dataset from scratch using the raw PDFs:
-1. Extract and chunk: `python scripts/extract_and_chunk.py`
-2. Generate scenarios: `python scripts/generate_dataset.py`
-
-## Fine-Tuning
-To start the fine-tuning process on an AMD GPU:
-```bash
-python finetune_amd.py
-```
-
-## Evaluation
-After fine-tuning, evaluate the model performance:
-```bash
-python scripts/evaluate.py
-```
+- `app.py`: Main Gradio application using `llama-cpp-python`.
+- `requirements.txt`: Minimal dependencies for GGUF inference.
+- `scripts/`: Training and evaluation scripts.
+- `data/`: Processed datasets and document chunks.
+- `results/`: Benchmarking and evaluation outputs.

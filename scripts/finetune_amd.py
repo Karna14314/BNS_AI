@@ -16,7 +16,6 @@ Requirements:
 # ============================================================
 import os
 os.environ["ROCR_VISIBLE_DEVICES"] = "0"
-os.environ["HSA_OVERRIDE_GFX_VERSION"] = "9.0.0"
 os.environ["HIP_VISIBLE_DEVICES"] = "0"
 
 import torch
@@ -27,10 +26,11 @@ torch.backends.cuda.matmul.allow_tf32 = True
 # ============================================================
 from transformers import (
     AutoModelForCausalLM, AutoTokenizer,
-    BitsAndBytesConfig, TrainingArguments
+    BitsAndBytesConfig
 )
+from trl import SFTConfig
 from peft import LoraConfig, get_peft_model, TaskType
-from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
+from trl import SFTTrainer
 from datasets import load_dataset, Dataset
 import json
 import random
@@ -93,17 +93,17 @@ def format_sample(sample):
 
     # Llama 3.1 Instruct chat format
     text = (
-        "<|begin_of_text|>"
+        "<|begin_of_text|>\n"
         "<|start_header_id|>system<|end_header_id|>\n\n"
         "You are NyayaLLM, an expert Indian criminal law assistant "
         "specializing in BNS, BNSS, and BSA 2023. Provide accurate "
-        "legal information with specific section references."
-        "<|eot_id|>"
+        "legal information with specific section references.\n"
+        "<|eot_id|>\n"
         "<|start_header_id|>user<|end_header_id|>\n\n"
-        f"{user_content}"
-        "<|eot_id|>"
+        f"{user_content}\n"
+        "<|eot_id|>\n"
         "<|start_header_id|>assistant<|end_header_id|>\n\n"
-        f"{output}"
+        f"{output}\n"
         "<|eot_id|>"
     )
     return {"text": text}
@@ -132,7 +132,8 @@ def load_model_and_tokenizer(bnb_config):
     print("=" * 60)
 
     tokenizer = AutoTokenizer.from_pretrained(MODEL_ID)
-    tokenizer.pad_token = tokenizer.eos_token
+    if tokenizer.pad_token is None:
+        tokenizer.add_special_tokens({'pad_token': '<|pad|>'})
     tokenizer.padding_side = "right"
 
     model = AutoModelForCausalLM.from_pretrained(
@@ -140,8 +141,12 @@ def load_model_and_tokenizer(bnb_config):
         quantization_config=bnb_config,
         device_map="auto",
         torch_dtype=torch.bfloat16,
-        attn_implementation="eager",  # flash_attention_2 if ROCm supports it
+        attn_implementation="eager",
     )
+    
+    if tokenizer.pad_token == '<|pad|>':
+        model.resize_token_embeddings(len(tokenizer))
+
     model.config.use_cache = False
     model.config.pretraining_tp = 1
 
@@ -177,8 +182,8 @@ def get_lora_config():
 # Step 6: Training Arguments
 # ============================================================
 def get_training_args():
-    """Create training arguments optimized for MI300X."""
-    return TrainingArguments(
+    """Create SFTConfig optimized for MI300X (trl v1.x)."""
+    return SFTConfig(
         output_dir=OUTPUT_DIR,
         num_train_epochs=3,
         per_device_train_batch_size=4,
@@ -187,9 +192,11 @@ def get_training_args():
         learning_rate=2e-4,
         lr_scheduler_type="cosine",
         warmup_ratio=0.03,
+        weight_decay=0.01,
+        max_grad_norm=1.0,
         bf16=True,
         fp16=False,
-        logging_steps=25,
+        logging_steps=10,
         eval_strategy="steps",
         eval_steps=100,
         save_strategy="steps",
@@ -198,9 +205,12 @@ def get_training_args():
         load_best_model_at_end=True,
         metric_for_best_model="eval_loss",
         dataloader_num_workers=4,
-        group_by_length=True,
         report_to="none",
         seed=SEED,
+        # SFT-specific args (moved from SFTTrainer in trl v1.x)
+        dataset_text_field="text",
+        max_length=MAX_SEQ_LENGTH,
+        packing=True,
     )
 
 
@@ -215,7 +225,7 @@ def main():
     # Verify GPU
     if torch.cuda.is_available():
         print(f"  GPU: {torch.cuda.get_device_name(0)}")
-        print(f"  VRAM: {torch.cuda.get_device_properties(0).total_mem / 1024**3:.1f} GB")
+        print(f"  VRAM: {torch.cuda.get_device_properties(0).total_memory / 1024**3:.1f} GB")
     else:
         print("  [WARN] No GPU detected! Training will be extremely slow on CPU.")
 
@@ -252,15 +262,12 @@ def main():
     print("=" * 60)
 
     trainer = SFTTrainer(
-        model=peft_model,
+        model=model,
         args=training_args,
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         peft_config=lora_config,
-        dataset_text_field="text",
-        max_seq_length=MAX_SEQ_LENGTH,
-        tokenizer=tokenizer,
-        packing=True,  # CRITICAL for GPU utilization
+        processing_class=tokenizer,
     )
 
     # Step 8: Train
@@ -306,6 +313,7 @@ def main():
         OUTPUT_DIR,
         torch_dtype=torch.bfloat16,
         device_map="auto",
+        attn_implementation="eager",
     )
     merged_model = merged_model.merge_and_unload()
     merged_model.save_pretrained(FINAL_DIR)
@@ -317,7 +325,7 @@ def main():
     print("  DONE! Next steps:")
     print("=" * 60)
     print(f"  1. Evaluate: python scripts/evaluate.py")
-    print(f"  2. Upload:   huggingface-cli upload YOUR_HF_USERNAME/NyayaLLM {FINAL_DIR}")
+    print(f"  2. Upload:   hf upload YOUR_HF_USERNAME/NyayaLLM {FINAL_DIR} .")
     print()
 
 
