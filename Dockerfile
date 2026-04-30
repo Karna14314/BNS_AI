@@ -1,9 +1,8 @@
 FROM python:3.11-slim
 
-# Install system dependencies
+# Install minimal system dependencies
 RUN apt-get update && apt-get install -y \
     build-essential \
-    python3-dev \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
@@ -11,11 +10,7 @@ WORKDIR /app
 # Upgrade pip
 RUN pip install --no-cache-dir --upgrade pip
 
-# Install llama-cpp-python with pre-built CPU wheels index
-RUN pip install --no-cache-dir llama-cpp-python==0.2.90 \
-    --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
-
-# Install other requirements
+# Install requirements (contains the direct manylinux wheel URL)
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 

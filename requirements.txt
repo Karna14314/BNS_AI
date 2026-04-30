@@ -1,4 +1,4 @@
 gradio>=4.0.0
 huggingface_hub>=0.20.0
-llama-cpp-python==0.2.90
+https://github.com/abetlen/llama-cpp-python/releases/download/v0.2.90/llama_cpp_python-0.2.90-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl
 pydub
