@@ -1,8 +1,9 @@
 FROM python:3.11-slim
 
-# Install system dependencies (libgomp1 is required for llama-cpp threading)
+# Install system dependencies (cmake is required to build llama-cpp)
 RUN apt-get update && apt-get install -y \
     build-essential \
+    cmake \
     libgomp1 \
     git \
     && rm -rf /var/lib/apt/lists/*
@@ -18,9 +19,11 @@ WORKDIR /home/user/app
 # Upgrade pip
 RUN pip install --no-cache-dir --upgrade pip
 
-# Install dependencies from requirements (includes the direct manylinux wheel)
+# Install dependencies
+# We use CMAKE_ARGS to ensure a clean CPU-only build during the Docker layer creation
 COPY --chown=user requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN CMAKE_ARGS="-DGGML_BLAS=OFF -DGGML_METAL=OFF" \
+    pip install --no-cache-dir -r requirements.txt
 
 # Copy application files
 COPY --chown=user . .
