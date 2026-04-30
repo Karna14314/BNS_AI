@@ -42,11 +42,26 @@ def get_llm():
 def format_prompt(message, history):
     """Format history and message into Llama 3.1 template."""
     prompt = f"<|start_header_id|>system<|end_header_id|>\n\n{SYSTEM_PROMPT}<|eot_id|>"
-    for user_msg, assistant_msg in history:
-        if user_msg:
-            prompt += f"<|start_header_id|>user<|end_header_id|>\n\n{user_msg}<|eot_id|>"
-        if assistant_msg:
-            prompt += f"<|start_header_id|>assistant<|end_header_id|>\n\n{assistant_msg}<|eot_id|>"
+    
+    for item in history:
+        # Gradio 4.x passes dicts; older versions pass tuples
+        if isinstance(item, dict):
+            role = item.get("role", "")
+            content = item.get("content", "")
+            if role and content:
+                # Llama 3.1 uses 'user' and 'assistant' roles
+                prompt += f"<|start_header_id|>{role}<|end_header_id|>\n\n{content}<|eot_id|>"
+        else:
+            # fallback for tuple format (user_msg, assistant_msg)
+            try:
+                user_msg, assistant_msg = item
+                if user_msg:
+                    prompt += f"<|start_header_id|>user<|end_header_id|>\n\n{user_msg}<|eot_id|>"
+                if assistant_msg:
+                    prompt += f"<|start_header_id|>assistant<|end_header_id|>\n\n{assistant_msg}<|eot_id|>"
+            except (TypeError, ValueError):
+                continue
+    
     prompt += f"<|start_header_id|>user<|end_header_id|>\n\n{message}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
     return prompt
 
