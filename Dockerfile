@@ -8,9 +8,11 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-# Upgrade pip and install pre-built llama-cpp-python wheel
+# Upgrade pip
 RUN pip install --no-cache-dir --upgrade pip
-RUN pip install --no-cache-dir llama-cpp-python \
+
+# Install llama-cpp-python with pre-built CPU wheels index
+RUN pip install --no-cache-dir llama-cpp-python==0.2.90 \
     --extra-index-url https://abetlen.github.io/llama-cpp-python/whl/cpu
 
 # Install other requirements

@@ -1,30 +1,43 @@
 import gradio as gr
 from huggingface_hub import hf_hub_download
 from llama_cpp import Llama
+import threading
 import os
 
 # ─── Configuration ───────────────────────────────────────────
 REPO_ID = "ncncomplete/NyayaLLM-Q4_K_M-GGUF"
 FILENAME = "nyayallm-q4_k_m.gguf"
 
-# Download the model
-print(f"Downloading model from {REPO_ID}...")
-model_path = hf_hub_download(repo_id=REPO_ID, filename=FILENAME)
-
-# Initialize the model
-print("Initializing Llama model (CPU Optimized)...")
-llm = Llama(
-    model_path=model_path,
-    n_ctx=2048,
-    n_threads=os.cpu_count(),
-    verbose=False
-)
-
 SYSTEM_PROMPT = (
     "You are NyayaLLM, an expert Indian criminal law assistant "
     "specializing in BNS, BNSS, and BSA 2023. Provide accurate "
     "legal information with specific section references."
 )
+
+# Global model variable for lazy initialization
+_llm = None
+_lock = threading.Lock()
+
+def get_llm():
+    """Lazy initialization of the Llama model with memory optimization."""
+    global _llm
+    if _llm is None:
+        with _lock:
+            if _llm is None:
+                print(f"Downloading model from {REPO_ID}...")
+                model_path = hf_hub_download(repo_id=REPO_ID, filename=FILENAME)
+                print("Initializing Llama model (Optimized for 16GB RAM)...")
+                _llm = Llama(
+                    model_path=model_path,
+                    n_ctx=2048,
+                    n_threads=4,      # Fixed threads for stability on Spaces
+                    n_gpu_layers=0,    # Force CPU
+                    n_batch=128,       # Reduced batch size for lower memory peak
+                    use_mmap=True,     # Memory mapping for disk-based paging
+                    use_mlock=False,   # Do not pin pages to RAM
+                    verbose=False,
+                )
+    return _llm
 
 # ─── Inference ───────────────────────────────────────────────
 def format_prompt(message, history):
@@ -38,21 +51,22 @@ def format_prompt(message, history):
     prompt += f"<|start_header_id|>user<|end_header_id|>\n\n{message}<|eot_id|><|start_header_id|>assistant<|end_header_id|>\n\n"
     return prompt
 
-def respond(message, history):
+def respond(message: str, history: list):
+    """Generator for streaming chat responses."""
+    llm = get_llm()
     prompt = format_prompt(message, history)
     
-    # Use streaming generation
     output = llm(
         prompt,
         max_tokens=512,
         stop=["<|eot_id|>", "User:", "System:"],
         echo=False,
-        stream=True
+        stream=True,
     )
     
     token_sequence = ""
     for chunk in output:
-        token = chunk['choices'][0]['text']
+        token = chunk["choices"][0]["text"]
         token_sequence += token
         yield token_sequence
 
@@ -64,7 +78,7 @@ demo = gr.ChatInterface(
         "Ask questions about **Bharatiya Nyaya Sanhita (BNS)**, "
         "**Bharatiya Nagarik Suraksha Sanhita (BNSS)**, and "
         "**Bharatiya Sakshya Adhiniyam (BSA) 2023**. "
-        "Running on GGUF (Q4_K_M) via llama-cpp-python (Pre-built CPU Wheel)."
+        "Optimized for 16GB RAM using GGUF memory-mapping."
     ),
     examples=[
         "What is the punishment for murder under BNS 2023?",
